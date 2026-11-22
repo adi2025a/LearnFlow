@@ -17,8 +17,9 @@ from app.schemas import (
     QuizResponse,
     TopicVideosResponse,
     YouTubeRecommendation,
+    YouTubeSearchResult,
 )
-from app.services import llm, study_tools
+from app.services import llm, study_tools, youtube
 
 
 @pytest_asyncio.fixture
@@ -155,4 +156,17 @@ def mock_llm_services(monkeypatch):
         fake_evaluate_user_explanation,
     )
     monkeypatch.setattr(study_tools, "stream_copilot_chat", fake_stream_copilot_chat)
+
+    async def fake_search_youtube(query: str, limit: int = 12):
+        return [
+            YouTubeSearchResult(
+                id="TnoW2ZrzUWI",
+                title="System Design Architecture Patterns",
+                channel="Cloud X Berry",
+                thumbnail="https://i.ytimg.com/vi/TnoW2ZrzUWI/hqdefault.jpg",
+                duration="2:00:15",
+            )
+        ]
+
     monkeypatch.setattr(study_tools, "get_topic_videos", fake_get_topic_videos)
+    monkeypatch.setattr(youtube, "search_youtube", fake_search_youtube)

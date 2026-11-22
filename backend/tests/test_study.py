@@ -147,3 +147,16 @@ async def test_topic_videos(client: AsyncClient):
     assert len(data["videos"]) >= 1
     assert data["videos"][0]["channel_or_creator"] == "freeCodeCamp"
     assert len(data["recommended_search_queries"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_youtube_direct_search(client: AsyncClient):
+    res = await client.get("/api/youtube/search?query=System+Design")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["query"] == "System Design"
+    assert len(data["results"]) >= 1
+    first = data["results"][0]
+    assert first["id"] == "TnoW2ZrzUWI"
+    assert "System Design" in first["title"]
+    assert first["channel"] == "Cloud X Berry"

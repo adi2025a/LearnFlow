@@ -234,3 +234,17 @@ class TopicVideosResponse(BaseModel):
     videos: list[YouTubeRecommendation] = Field(
         description="List of 4-6 high quality video recommendations"
     )
+
+
+# --- Real Direct YouTube Search Schemas (Zero-LLM) ---
+class YouTubeSearchResult(BaseModel):
+    id: str = Field(description="11-character YouTube video ID")
+    title: str = Field(description="Video title")
+    channel: str = Field(description="Channel or creator name")
+    thumbnail: str = Field(description="Thumbnail image URL")
+    duration: str | None = Field(default=None, description="Video duration string")
+
+
+class YouTubeSearchResponse(BaseModel):
+    query: str
+    results: list[YouTubeSearchResult]

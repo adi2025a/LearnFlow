@@ -1,7 +1,7 @@
 import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,8 +15,9 @@ from app.schemas import (
     ExplanationEvaluateResponse,
     QuizResponse,
     TopicVideosResponse,
+    YouTubeSearchResponse,
 )
-from app.services import study_tools
+from app.services import study_tools, youtube
 
 router = APIRouter(tags=["study"])
 
@@ -110,6 +111,14 @@ async def get_topic_videos_route(
         chapter_title=chapter.title,
         roadmap_title=roadmap.title,
     )
+
+
+@router.get("/youtube/search", response_model=YouTubeSearchResponse)
+async def search_youtube_videos(
+    query: str = Query(..., min_length=1),
+):
+    results = await youtube.search_youtube(query)
+    return YouTubeSearchResponse(query=query, results=results)
 
 
 @router.post("/copilot/chat")

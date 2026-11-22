@@ -156,6 +156,21 @@ export interface TopicVideosResponse {
   videos: YouTubeRecommendation[]
 }
 
+// --- Real YouTube Direct Search Types (Zero AI) ---
+export interface YouTubeVideoItem {
+  id: string
+  title: string
+  channel: string
+  thumbnail: string
+  duration?: string | null
+}
+
+export interface YouTubeSearchResponse {
+  query: string
+  results: YouTubeVideoItem[]
+}
+
+
 
 
 export interface SSEErrorEvent {

@@ -15,6 +15,7 @@ import type {
   TopicCreate,
   TopicUpdate,
   TopicVideosResponse,
+  YouTubeSearchResponse,
 } from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -125,6 +126,8 @@ export const api = {
     }),
   getTopicVideos: (topicId: string) =>
     request<TopicVideosResponse>(`/api/topics/${topicId}/videos`),
+  searchYouTube: (query: string) =>
+    request<YouTubeSearchResponse>(`/api/youtube/search?query=${encodeURIComponent(query)}`),
 }
 
 

@@ -7,6 +7,10 @@ interface YouTubeViewProps {
   topic: Topic
   chapterTitle?: string
   roadmapTitle?: string
+  isFloatingMini?: boolean
+  shouldShowMini?: boolean
+  onExpandToDrawer?: () => void
+  onDismissMiniPlayer?: () => void
 }
 
 function extractVideoId(input: string): string | null {
@@ -21,6 +25,10 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
   topic,
   chapterTitle,
   roadmapTitle,
+  isFloatingMini = false,
+  shouldShowMini = false,
+  onExpandToDrawer,
+  onDismissMiniPlayer,
 }) => {
   const defaultTopicQuery = useMemo(() => {
     return topic.title.trim()
@@ -98,36 +106,81 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
   }, [topic.title, chapterTitle, roadmapTitle])
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-3.5 space-y-3.5 bg-[#0c0c0e]">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-950/60 border border-red-800/40 text-xs text-red-400">
-            ▶
-          </span>
-          <div>
-            <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider font-mono">
-              YouTube Lessons
-            </h3>
-            <p className="text-[10px] text-zinc-400 font-mono">
-              Live YouTube search • Zero AI
-            </p>
+    <div
+      className={
+        isFloatingMini
+          ? (shouldShowMini && activeVideo ? 'contents' : 'hidden')
+          : 'flex flex-col h-full overflow-y-auto p-3.5 space-y-3.5 bg-[#0c0c0e]'
+      }
+    >
+      {/* Header (hidden in floating mini mode) */}
+      {!isFloatingMini && (
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-950/60 border border-red-800/40 text-xs text-red-400">
+              ▶
+            </span>
+            <div>
+              <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider font-mono">
+                YouTube Lessons
+              </h3>
+              <p className="text-[10px] text-zinc-400 font-mono">
+                Live YouTube search • Zero AI
+              </p>
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => handleOpenExternal(activeVideo?.id)}
+            className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 px-2 py-1 text-[10px] font-mono text-zinc-300 hover:text-white transition-colors"
+            title="Open in YouTube tab"
+          >
+            <span>YouTube</span>
+            <span>↗</span>
+          </button>
         </div>
+      )}
 
-        <button
-          type="button"
-          onClick={() => handleOpenExternal(activeVideo?.id)}
-          className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 px-2 py-1 text-[10px] font-mono text-zinc-300 hover:text-white transition-colors"
-          title="Open in YouTube tab"
-        >
-          <span>YouTube</span>
-          <span>↗</span>
-        </button>
-      </div>
+      {/* Video Player: Persistent across both inline and floating mini modes */}
+      <div
+        className={
+          isFloatingMini
+            ? 'fixed bottom-5 right-14 sm:right-16 w-80 sm:w-96 rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl z-40 overflow-hidden backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-200'
+            : 'rounded-2xl border border-zinc-800 bg-black overflow-hidden shadow-2xl shrink-0'
+        }
+      >
+        {/* Floating Mini Player Top Bar */}
+        {isFloatingMini && (
+          <div className="flex items-center justify-between px-3 py-2 bg-zinc-900/90 border-b border-zinc-800 text-[11px] font-mono">
+            <div className="flex items-center gap-2 truncate pr-2">
+              <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <span className="text-zinc-200 font-medium truncate">
+                {activeVideo?.title || 'YouTube Lesson'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={onExpandToDrawer}
+                className="px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-200 hover:text-white transition-colors cursor-pointer"
+                title="Expand to Study Drawer"
+              >
+                Expand ↗
+              </button>
+              <button
+                type="button"
+                onClick={onDismissMiniPlayer}
+                className="h-5 w-5 rounded-md flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs transition-colors cursor-pointer"
+                title="Close mini-player"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
-      {/* Hero Small YouTube iFrame Player */}
-      <div className="rounded-2xl border border-zinc-800 bg-black overflow-hidden shadow-2xl shrink-0">
+        {/* Video Frame */}
         <div className="relative w-full aspect-video bg-zinc-950">
           {activeVideo ? (
             <iframe
@@ -159,8 +212,8 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
           )}
         </div>
 
-        {/* Player Status Bar */}
-        {activeVideo && (
+        {/* Inline Drawer Player Status Bar */}
+        {!isFloatingMini && activeVideo && (
           <div className="flex items-center justify-between px-3 py-2 bg-zinc-950/90 border-t border-zinc-900 text-[10px] font-mono">
             <div className="truncate pr-2">
               <span className="text-zinc-200 font-medium truncate block">
@@ -180,9 +233,24 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
             </button>
           </div>
         )}
+
+        {/* Floating Mini Player Footer */}
+        {isFloatingMini && activeVideo && (
+          <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950/90 border-t border-zinc-800/80 text-[10px] font-mono">
+            <span className="text-zinc-400 truncate max-w-[200px]">
+              {activeVideo.channel}
+            </span>
+            <span className="text-zinc-500 text-[9px]">
+              Playing in Mini Player
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Search Input Bar */}
+      {/* Search Input Bar, Quick Chips, and Results (hidden in floating mini mode) */}
+      {!isFloatingMini && (
+        <>
+          {/* Search Input Bar */}
       <form onSubmit={handleSearchSubmit} className="relative flex items-center shrink-0">
         <input
           type="text"
@@ -343,6 +411,8 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
           </div>
         )}
       </div>
-    </div>
-  )
+    </>
+  )}
+</div>
+)
 }

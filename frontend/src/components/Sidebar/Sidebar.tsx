@@ -1,8 +1,27 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Chapter, RoadmapTree, Topic, TopicStatus } from '../../api/types'
 import { api } from '../../api/client'
+
+const SIDEBAR_STORAGE_KEY = 'learnflow_sidebar_width'
+const DEFAULT_SIDEBAR_WIDTH = 280
+const MIN_SIDEBAR_WIDTH = 220
+const MAX_SIDEBAR_WIDTH = 480
+
+function getInitialSidebarWidth(): number {
+  if (typeof window === 'undefined') return DEFAULT_SIDEBAR_WIDTH
+  try {
+    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+    if (saved) {
+      const parsed = parseInt(saved, 10)
+      if (!isNaN(parsed) && parsed >= MIN_SIDEBAR_WIDTH && parsed <= MAX_SIDEBAR_WIDTH) {
+        return parsed
+      }
+    }
+  } catch {}
+  return DEFAULT_SIDEBAR_WIDTH
+}
 
 interface SidebarProps {
   roadmap: RoadmapTree | null
@@ -51,6 +70,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [editingChapterTitle, setEditingChapterTitle] = useState('')
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null)
   const [editingTopicTitle, setEditingTopicTitle] = useState('')
+
+  // Resizable sidebar state
+  const [sidebarWidth, setSidebarWidth] = useState<number>(getInitialSidebarWidth)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartXRef = useRef<number>(0)
+  const dragStartWidthRef = useRef<number>(DEFAULT_SIDEBAR_WIDTH)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    dragStartXRef.current = e.clientX
+    dragStartWidthRef.current = sidebarWidth
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - dragStartXRef.current
+      const rawWidth = dragStartWidthRef.current + delta
+      const clamped = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, rawWidth))
+      setSidebarWidth(clamped)
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarWidth.toString())
+    } catch {}
+  }, [sidebarWidth])
 
   // Mutations
   const updateTopicMutation = useMutation({
@@ -122,6 +183,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
+      {/* Invisible global overlay during active dragging */}
+      {isDragging && (
+        <div
+          className="fixed inset-0 z-50 cursor-col-resize select-none"
+          style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+        />
+      )}
+
       {/* Mobile backdrop */}
       {isOpen && (
         <div
@@ -131,10 +200,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 sm:w-80 flex-col border-r border-zinc-800/80 bg-[#0c0c0e] transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+        style={{ width: `${sidebarWidth}px` }}
+        className={`relative fixed inset-y-0 left-0 z-30 flex flex-col border-r border-zinc-800/80 bg-[#0c0c0e] transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 shrink-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        } ${isDragging ? 'select-none transition-none' : ''}`}
       >
+        {/* Vertical Draggable Border Handle */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          onMouseDown={handleMouseDown}
+          onDoubleClick={() => setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
+          className="hidden lg:flex absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize z-40 group items-center justify-center select-none"
+          title="Drag to resize sidebar (Double click to reset to 280px)"
+        >
+          {/* Dividing line with hover and drag glow */}
+          <div
+            className={`h-full w-[2px] transition-colors ${
+              isDragging
+                ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]'
+                : 'bg-zinc-800/80 group-hover:bg-emerald-500'
+            }`}
+          />
+
+          {/* Tactile 3-dot grip pill */}
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-1 rounded-full border px-0.5 py-2.5 transition-all shadow-md ${
+              isDragging
+                ? 'border-emerald-500 bg-zinc-900 text-emerald-400 scale-110 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                : 'border-zinc-700 bg-zinc-900 text-zinc-400 opacity-0 group-hover:opacity-100 group-hover:border-emerald-500 group-hover:text-emerald-400'
+            }`}
+          >
+            <span className="w-0.5 h-1 rounded-full bg-current" />
+            <span className="w-0.5 h-1 rounded-full bg-current" />
+            <span className="w-0.5 h-1 rounded-full bg-current" />
+          </div>
+
+          {/* Width indicator tooltip */}
+          {isDragging && (
+            <div className="absolute top-4 left-4 px-2 py-0.5 rounded-md bg-zinc-900/95 border border-zinc-700 text-[10px] font-mono text-zinc-100 shadow-xl pointer-events-none whitespace-nowrap backdrop-blur-md">
+              {sidebarWidth}px
+            </div>
+          )}
+        </div>
         {/* Header */}
         <div className="flex h-14 items-center justify-between border-b border-zinc-800/80 px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold text-white tracking-tight text-sm">

@@ -190,24 +190,24 @@ export const StudyDrawer: React.FC<StudyDrawerProps> = ({
               aria-orientation="vertical"
               onMouseDown={handleMouseDown}
               onDoubleClick={handleResetWidth}
-              className="absolute -left-1.5 top-0 bottom-0 w-3 cursor-col-resize z-30 group flex items-center justify-center select-none"
+              className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-40 group flex items-center justify-center select-none"
               title="Drag to resize drawer (Double click to reset to 440px)"
             >
               {/* Visual dividing line with hover and drag glow */}
               <div
                 className={`h-full w-[2px] transition-colors ${
                   isDragging
-                    ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
-                    : 'bg-transparent group-hover:bg-zinc-500'
+                    ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]'
+                    : 'bg-zinc-800/80 group-hover:bg-emerald-500'
                 }`}
               />
 
-              {/* Tactile 3-dot grip pill in center */}
+              {/* Tactile 3-dot grip pill in center - ALWAYS visible so user sees it can be resized */}
               <div
-                className={`absolute top-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-1 rounded-full border px-0.5 py-2 transition-all ${
+                className={`absolute top-1/2 -translate-y-1/2 flex flex-col items-center justify-center gap-1 rounded-full border px-0.5 py-2.5 transition-all shadow-md ${
                   isDragging
-                    ? 'border-emerald-500 bg-zinc-900 text-emerald-400 scale-110 shadow-lg'
-                    : 'border-zinc-700 bg-zinc-900/90 text-zinc-500 opacity-0 group-hover:opacity-100 group-hover:border-zinc-500'
+                    ? 'border-emerald-500 bg-zinc-900 text-emerald-400 scale-110 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                    : 'border-zinc-700 bg-zinc-900 text-zinc-400 group-hover:border-emerald-500 group-hover:text-emerald-400'
                 }`}
               >
                 <span className="w-0.5 h-1 rounded-full bg-current" />
@@ -217,7 +217,7 @@ export const StudyDrawer: React.FC<StudyDrawerProps> = ({
 
               {/* Live Width Indicator Tooltip while dragging */}
               {isDragging && (
-                <div className="absolute top-4 -left-3 -translate-x-full px-2 py-0.5 rounded-md bg-zinc-900/95 border border-zinc-700 text-[10px] font-mono text-zinc-200 shadow-xl pointer-events-none whitespace-nowrap backdrop-blur-md">
+                <div className="absolute top-4 -left-3 -translate-x-full px-2.5 py-1 rounded-md bg-zinc-900/95 border border-zinc-700 text-[11px] font-mono text-zinc-100 shadow-2xl pointer-events-none whitespace-nowrap backdrop-blur-md">
                   {drawerWidth}px {drawerWidth >= Math.floor(window.innerWidth * 0.48) ? '(50/50 Split)' : ''}
                 </div>
               )}

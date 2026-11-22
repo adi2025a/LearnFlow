@@ -27,7 +27,7 @@ router = APIRouter(tags=["study"])
 
 @router.get("/activity", response_model=ActivityStatsResponse)
 async def get_study_activity_stats(
-    days: int = Query(default=112, ge=14, le=365),
+    days: int = Query(default=364, ge=14, le=371),
     db: AsyncSession = Depends(get_db),
 ):
     today = datetime.now(UTC).date()

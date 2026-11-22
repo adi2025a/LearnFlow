@@ -129,7 +129,7 @@ export const api = {
     request<TopicVideosResponse>(`/api/topics/${topicId}/videos`),
   searchYouTube: (query: string) =>
     request<YouTubeSearchResponse>(`/api/youtube/search?query=${encodeURIComponent(query)}`),
-  getActivityStats: (days = 112) =>
+  getActivityStats: (days = 364) =>
     request<ActivityStatsResponse>(`/api/activity?days=${days}`),
 }
 

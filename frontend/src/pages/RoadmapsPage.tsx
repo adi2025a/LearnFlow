@@ -9,6 +9,7 @@ interface RoadmapsPageProps {
   currentRoadmap: RoadmapTree | null
   roadmaps: { id: string; title: string; goal: string; level?: string | null }[]
   onOpenNewRoadmap: () => void
+  onOpenSearch?: () => void
 }
 
 interface RoadmapCardData {
@@ -30,6 +31,7 @@ export const RoadmapsPage: React.FC<RoadmapsPageProps> = ({
   currentRoadmap,
   roadmaps,
   onOpenNewRoadmap,
+  onOpenSearch,
 }) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -165,6 +167,20 @@ export const RoadmapsPage: React.FC<RoadmapsPageProps> = ({
               </span>
             </div>
 
+            {onOpenSearch && (
+              <button
+                type="button"
+                onClick={onOpenSearch}
+                className="flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 transition-colors"
+                title="Search messages (Ctrl+K)"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span className="font-mono text-[10px] hidden sm:inline">Search</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenNewRoadmap}
@@ -215,7 +231,7 @@ export const RoadmapsPage: React.FC<RoadmapsPageProps> = ({
 
                   <div>
                     <Link
-                      to={`/roadmaps/${roadmap.id}`}
+                      to={targetTopic ? `/topics/${targetTopic.id}` : `/roadmaps/${roadmap.id}`}
                       className="text-base font-semibold text-white hover:text-zinc-200 transition-colors line-clamp-1"
                     >
                       {roadmap.title}

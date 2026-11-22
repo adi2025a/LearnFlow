@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   BrowserRouter,
   Routes,
   Route,
   useParams,
   useLocation,
+  useNavigate,
 } from 'react-router-dom'
 import {
   QueryClient,
@@ -27,6 +28,33 @@ const queryClient = new QueryClient({
   },
 })
 
+function RoadmapRedirect() {
+  const { roadmapId } = useParams<{ roadmapId: string }>()
+  const navigate = useNavigate()
+  const { data: tree } = useQuery({
+    queryKey: ['roadmap', roadmapId],
+    queryFn: () => (roadmapId ? api.getRoadmap(roadmapId) : null),
+    enabled: Boolean(roadmapId),
+  })
+
+  useEffect(() => {
+    if (!tree) return
+    const allTopics = tree.chapters.flatMap((ch) => ch.topics)
+    const nextTopic = allTopics.find((t) => t.status !== 'solid') || allTopics[0]
+    if (nextTopic) {
+      navigate(`/topics/${nextTopic.id}`, { replace: true })
+    } else {
+      navigate('/', { replace: true })
+    }
+  }, [tree, navigate])
+
+  return (
+    <div className="flex flex-1 items-center justify-center bg-[#09090b]">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
+    </div>
+  )
+}
+
 function AppLayout() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isNewRoadmapOpen, setIsNewRoadmapOpen] = useState(false)
@@ -36,6 +64,7 @@ function AppLayout() {
     roadmapId?: string
   }>()
   const location = useLocation()
+  const isHomePage = location.pathname === '/'
 
   // 1. Fetch all roadmaps
   const { data: roadmaps = [], isLoading: isRoadmapsLoading } = useQuery({
@@ -60,16 +89,20 @@ function AppLayout() {
     <div className="flex h-screen w-screen overflow-hidden bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 selection:text-white">
       {/* Mobile top navigation header */}
       <div className="flex h-14 w-full items-center justify-between border-b border-zinc-800/80 bg-[#09090b]/90 px-4 backdrop-blur-md lg:hidden fixed top-0 left-0 z-30">
-        <button
-          type="button"
-          onClick={() => setIsMobileSidebarOpen(true)}
-          className="rounded-lg p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors"
-          aria-label="Open navigation menu"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+        {!isHomePage ? (
+          <button
+            type="button"
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="rounded-lg p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors"
+            aria-label="Open navigation menu"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        ) : (
+          <div className="w-8" />
+        )}
 
         <span className="font-semibold text-xs tracking-tight text-white font-mono">LearnFlow</span>
 
@@ -85,15 +118,17 @@ function AppLayout() {
         </button>
       </div>
 
-      {/* Sidebar */}
-      <Sidebar
-        roadmap={roadmapTree}
-        roadmaps={roadmaps}
-        onOpenNewRoadmap={() => setIsNewRoadmapOpen(true)}
-        onOpenSearch={() => setIsSearchOpen(true)}
-        isOpen={isMobileSidebarOpen}
-        onClose={() => setIsMobileSidebarOpen(false)}
-      />
+      {/* Sidebar: Only visible when inspecting a roadmap/topic, hidden on Home Dashboard */}
+      {!isHomePage && (
+        <Sidebar
+          roadmap={roadmapTree}
+          roadmaps={roadmaps}
+          onOpenNewRoadmap={() => setIsNewRoadmapOpen(true)}
+          onOpenSearch={() => setIsSearchOpen(true)}
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Content Area */}
       <main className="flex flex-1 flex-col overflow-hidden pt-14 lg:pt-0 bg-[#09090b]">
@@ -106,19 +141,13 @@ function AppLayout() {
                 currentRoadmap={roadmapTree}
                 roadmaps={roadmaps}
                 onOpenNewRoadmap={() => setIsNewRoadmapOpen(true)}
+                onOpenSearch={() => setIsSearchOpen(true)}
               />
             }
           />
           <Route
             path="/roadmaps/:roadmapId"
-            element={
-              <RoadmapsPage
-                key={location.pathname}
-                currentRoadmap={roadmapTree}
-                roadmaps={roadmaps}
-                onOpenNewRoadmap={() => setIsNewRoadmapOpen(true)}
-              />
-            }
+            element={<RoadmapRedirect />}
           />
           <Route
             path="/topics/:topicId"

@@ -187,6 +187,57 @@ export interface ActivityStatsResponse {
   history: DailyActivity[]
 }
 
+// --- 3D Knowledge Universe Types ---
+export type GraphNodeType = 'roadmap' | 'chapter' | 'topic'
+export type GraphLinkType = 'structural' | 'sequential' | 'synapse'
+
+export interface GraphNode {
+  id: string
+  raw_id: string
+  label: string
+  type: GraphNodeType
+  status?: TopicStatus | 'core' | 'cluster' | null
+  roadmap_id?: string | null
+  roadmap_title?: string | null
+  chapter_id?: string | null
+  chapter_title?: string | null
+  val: number
+  message_count: number
+  growth_level: number // 0: dormant, 1: learning, 2: solid supernova, 3: galaxy core
+  color: string
+  created_at: string
+  summary?: string | null
+  x?: number
+  y?: number
+  z?: number
+  vx?: number
+  vy?: number
+  vz?: number
+}
+
+export interface GraphLink {
+  source: string | GraphNode
+  target: string | GraphNode
+  type: GraphLinkType
+  color?: string | null
+  curvature?: number
+  particles?: number
+}
+
+export interface KnowledgeGraphResponse {
+  nodes: GraphNode[]
+  links: GraphLink[]
+  total_nodes: number
+  total_roadmaps: number
+  total_chapters: number
+  total_topics: number
+  total_solid: number
+  total_learning: number
+  total_not_started: number
+  earliest_date?: string | null
+  latest_date?: string | null
+}
+
 export interface SSEErrorEvent {
   error: string
 }

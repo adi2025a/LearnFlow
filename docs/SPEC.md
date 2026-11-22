@@ -76,10 +76,13 @@ data: {"error": "message"}               (only on failure)
 ### Study Tools (Learning Accelerator)
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/activity?days=364` | Returns streak count, active days count, solid topics, total messages, and daily activity array |
+| GET | `/knowledge-graph` | Aggregated 3D physics knowledge universe graph: roadmaps (core hubs), chapters (clusters), topics (stars with growth levels), sequential links, and cross-roadmap concept synapses |
 | POST | `/topics/{id}/quiz` | Generates 3-4 structured MCQ questions with 4 options, correct answer ID, and explanations |
 | POST | `/topics/{id}/evaluate-explanation` | Body `{explanation}`. Evaluates learner's explanation (Feynman rating, strengths, gaps, advice) |
 | POST | `/copilot/chat` | Body `{messages}`. Zero-context technical copilot scratchpad chat. Streams SSE tokens |
 | GET/POST | `/topics/{id}/videos` | Relatable YouTube videos and lecture recommendations for the topic |
+| GET | `/youtube/search?query=...` | Direct YouTube video search with thumbnails and channel info |
 
 
 

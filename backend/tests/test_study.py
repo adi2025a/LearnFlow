@@ -175,3 +175,80 @@ async def test_activity_stats(client: AsyncClient):
     assert "total_topics_solid" in data
     assert len(data["history"]) == 30
     assert data["history"][-1]["date"] is not None
+
+
+@pytest.mark.asyncio
+async def test_knowledge_graph(client: AsyncClient):
+    # Create roadmaps with chapters and topics to test knowledge graph generation
+    res = await client.post(
+        "/api/roadmaps",
+        json={"title": "Distributed Systems", "goal": "Master distributed compute"},
+    )
+    assert res.status_code == 201
+    roadmap_id = res.json()["id"]
+
+    res = await client.post(
+        f"/api/roadmaps/{roadmap_id}/chapters",
+        json={"title": "Consensus & State"},
+    )
+    assert res.status_code == 201
+    chapter_id = res.json()["id"]
+
+    res = await client.post(
+        f"/api/chapters/{chapter_id}/topics",
+        json={"title": "Raft Consensus Algorithm"},
+    )
+    assert res.status_code == 201
+    topic1_id = res.json()["id"]
+
+    res = await client.post(
+        f"/api/chapters/{chapter_id}/topics",
+        json={"title": "Paxos Consensus Protocol"},
+    )
+    assert res.status_code == 201
+    topic2_id = res.json()["id"]
+
+    # Mark topic1 as solid
+    await client.patch(
+        f"/api/topics/{topic1_id}",
+        json={"status": "solid"},
+    )
+
+    # Fetch knowledge graph
+    res = await client.get("/api/knowledge-graph")
+    assert res.status_code == 200
+    graph = res.json()
+
+    assert "nodes" in graph
+    assert "links" in graph
+    assert graph["total_nodes"] >= 4  # at least roadmap, chapter, 2 topics
+    assert graph["total_roadmaps"] >= 1
+    assert graph["total_chapters"] >= 1
+    assert graph["total_topics"] >= 2
+    assert graph["total_solid"] >= 1
+
+    # Verify node structure
+    node_ids = {n["id"] for n in graph["nodes"]}
+    assert f"roadmap-{roadmap_id}" in node_ids
+    assert f"chapter-{chapter_id}" in node_ids
+    assert f"topic-{topic1_id}" in node_ids
+    assert f"topic-{topic2_id}" in node_ids
+
+    # Find topic1 node and verify solid status & color
+    t1_node = next(n for n in graph["nodes"] if n["id"] == f"topic-{topic1_id}")
+    assert t1_node["status"] == "solid"
+    assert t1_node["color"] == "#10b981"
+    assert t1_node["growth_level"] == 2
+
+    # Verify sequential link between topic 1 and topic 2
+    seq_link = next(
+        (
+            l
+            for l in graph["links"]
+            if l["source"] == f"topic-{topic1_id}"
+            and l["target"] == f"topic-{topic2_id}"
+        ),
+        None,
+    )
+    assert seq_link is not None
+    assert seq_link["type"] == "sequential"

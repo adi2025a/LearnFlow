@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -9,13 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import get_db
-from app.models import Chapter, Message, Topic
+from app.models import Chapter, Message, Roadmap, Topic
 from app.schemas import (
     ActivityStatsResponse,
     CopilotChatRequest,
     DailyActivity,
     ExplanationEvaluateRequest,
     ExplanationEvaluateResponse,
+    GraphLink,
+    GraphNode,
+    KnowledgeGraphResponse,
     QuizResponse,
     TopicVideosResponse,
     YouTubeSearchResponse,
@@ -249,4 +253,305 @@ async def copilot_chat(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+STOP_WORDS = {
+    "with",
+    "from",
+    "that",
+    "this",
+    "into",
+    "using",
+    "basics",
+    "intro",
+    "introduction",
+    "advanced",
+    "guide",
+    "overview",
+    "learn",
+    "first",
+    "part",
+    "build",
+    "building",
+    "about",
+    "what",
+    "when",
+    "where",
+    "which",
+    "your",
+    "their",
+    "simple",
+    "core",
+    "fundamental",
+    "fundamentals",
+    "understanding",
+    "mastering",
+    "deep",
+    "dive",
+    "practical",
+    "crash",
+    "course",
+    "concepts",
+    "concept",
+    "patterns",
+    "pattern",
+    "modern",
+    "essential",
+    "essentials",
+    "getting",
+    "started",
+    "step",
+    "steps",
+    "chapter",
+    "topic",
+    "notes",
+    "learnflow",
+}
+
+
+def _extract_concept_keywords(title: str) -> set[str]:
+    words = re.findall(r"[a-zA-Z]{3,}", title.lower())
+    return {w for w in words if w not in STOP_WORDS}
+
+
+@router.get("/knowledge-graph", response_model=KnowledgeGraphResponse)
+async def get_knowledge_graph(
+    db: AsyncSession = Depends(get_db),
+):
+    # 1. Fetch all roadmaps with chapters and topics
+    stmt = (
+        select(Roadmap)
+        .options(selectinload(Roadmap.chapters).selectinload(Chapter.topics))
+        .order_by(Roadmap.created_at.asc())
+    )
+    result = await db.execute(stmt)
+    roadmaps = result.scalars().all()
+
+    # 2. Get message counts per topic
+    msg_stmt = (
+        select(Message.topic_id, func.count(Message.id).label("cnt"))
+        .group_by(Message.topic_id)
+    )
+    msg_res = await db.execute(msg_stmt)
+    msg_counts = {row.topic_id: row.cnt for row in msg_res}
+
+    nodes: list[GraphNode] = []
+    links: list[GraphLink] = []
+
+    total_solid = 0
+    total_learning = 0
+    total_not_started = 0
+    total_chapters = 0
+    total_topics = 0
+
+    all_dates: list[str] = []
+    topic_keywords: dict[str, set[str]] = {}
+    topic_chapter_map: dict[str, str] = {}
+
+    for r in roadmaps:
+        r_id_str = f"roadmap-{r.id}"
+        r_created_iso = r.created_at.isoformat()
+        all_dates.append(r_created_iso)
+
+        # Roadmap core node
+        nodes.append(
+            GraphNode(
+                id=r_id_str,
+                raw_id=str(r.id),
+                label=r.title,
+                type="roadmap",
+                status="core",
+                roadmap_id=str(r.id),
+                roadmap_title=r.title,
+                val=26.0,
+                growth_level=3,
+                color="#38bdf8",  # Sky-blue galaxy core
+                created_at=r_created_iso,
+                summary=r.goal,
+            )
+        )
+
+        for ch in r.chapters:
+            total_chapters += 1
+            ch_id_str = f"chapter-{ch.id}"
+            ch_created_iso = ch.created_at.isoformat()
+            all_dates.append(ch_created_iso)
+
+            # Chapter cluster node
+            nodes.append(
+                GraphNode(
+                    id=ch_id_str,
+                    raw_id=str(ch.id),
+                    label=ch.title,
+                    type="chapter",
+                    status="cluster",
+                    roadmap_id=str(r.id),
+                    roadmap_title=r.title,
+                    chapter_id=str(ch.id),
+                    chapter_title=ch.title,
+                    val=15.0,
+                    growth_level=2,
+                    color="#818cf8",  # Indigo cluster hub
+                    created_at=ch_created_iso,
+                )
+            )
+
+            # Structural link: Roadmap -> Chapter
+            links.append(
+                GraphLink(
+                    source=r_id_str,
+                    target=ch_id_str,
+                    type="structural",
+                    color="rgba(129, 140, 248, 0.4)",
+                    curvature=0.0,
+                    particles=2,
+                )
+            )
+
+            prev_topic_id: str | None = None
+
+            for tp in ch.topics:
+                total_topics += 1
+                tp_id_str = f"topic-{tp.id}"
+                tp_created_iso = tp.created_at.isoformat()
+                all_dates.append(tp_created_iso)
+                topic_chapter_map[tp_id_str] = str(ch.id)
+
+                m_count = msg_counts.get(tp.id, 0)
+                keywords = _extract_concept_keywords(tp.title)
+                if keywords:
+                    topic_keywords[tp_id_str] = keywords
+
+                if tp.status == "solid":
+                    total_solid += 1
+                    growth_level = 2
+                    color = "#10b981"  # Emerald supernova
+                    val = 9.0 + min(m_count * 0.6, 8.0)
+                    link_color = "rgba(16, 185, 129, 0.55)"
+                    particles = 3
+                elif tp.status == "learning":
+                    total_learning += 1
+                    growth_level = 1
+                    color = "#f59e0b"  # Amber pulsating star
+                    val = 6.0 + min(m_count * 0.4, 5.0)
+                    link_color = "rgba(245, 158, 11, 0.45)"
+                    particles = 1
+                else:
+                    total_not_started += 1
+                    growth_level = 0
+                    color = "#52525b"  # Zinc dormant protostar
+                    val = 4.0
+                    link_color = "rgba(113, 113, 122, 0.22)"
+                    particles = 0
+
+                # Topic star node
+                nodes.append(
+                    GraphNode(
+                        id=tp_id_str,
+                        raw_id=str(tp.id),
+                        label=tp.title,
+                        type="topic",
+                        status=tp.status,
+                        roadmap_id=str(r.id),
+                        roadmap_title=r.title,
+                        chapter_id=str(ch.id),
+                        chapter_title=ch.title,
+                        val=val,
+                        message_count=m_count,
+                        growth_level=growth_level,
+                        color=color,
+                        created_at=tp_created_iso,
+                        summary=tp.summary,
+                    )
+                )
+
+                # Structural link: Chapter -> Topic
+                links.append(
+                    GraphLink(
+                        source=ch_id_str,
+                        target=tp_id_str,
+                        type="structural",
+                        color=link_color,
+                        curvature=0.0,
+                        particles=particles,
+                    )
+                )
+
+                # Sequential progression link: Topic[i-1] -> Topic[i]
+                if prev_topic_id is not None:
+                    links.append(
+                        GraphLink(
+                            source=prev_topic_id,
+                            target=tp_id_str,
+                            type="sequential",
+                            color="rgba(147, 197, 253, 0.3)",
+                            curvature=0.08,
+                            particles=1 if tp.status == "solid" else 0,
+                        )
+                    )
+                prev_topic_id = tp_id_str
+
+    # 3. Compute cross-chapter / cross-roadmap concept synapses
+    seen_pairs: set[tuple[str, str]] = set()
+    topic_ids = list(topic_keywords.keys())
+    synapse_count_by_topic: dict[str, int] = {}
+
+    for i in range(len(topic_ids)):
+        t1_id = topic_ids[i]
+        t1_words = topic_keywords[t1_id]
+        t1_ch = topic_chapter_map.get(t1_id)
+
+        for j in range(i + 1, len(topic_ids)):
+            t2_id = topic_ids[j]
+            t2_ch = topic_chapter_map.get(t2_id)
+
+            # Only connect across different chapters
+            if t1_ch == t2_ch:
+                continue
+
+            # Limit synapses per topic to prevent excessive visual clutter
+            if (
+                synapse_count_by_topic.get(t1_id, 0) >= 2
+                or synapse_count_by_topic.get(t2_id, 0) >= 2
+            ):
+                continue
+
+            shared_words = t1_words.intersection(topic_keywords[t2_id])
+            if shared_words:
+                pair_key = (min(t1_id, t2_id), max(t1_id, t2_id))
+                if pair_key not in seen_pairs:
+                    seen_pairs.add(pair_key)
+                    synapse_count_by_topic[t1_id] = (
+                        synapse_count_by_topic.get(t1_id, 0) + 1
+                    )
+                    synapse_count_by_topic[t2_id] = (
+                        synapse_count_by_topic.get(t2_id, 0) + 1
+                    )
+                    links.append(
+                        GraphLink(
+                            source=t1_id,
+                            target=t2_id,
+                            type="synapse",
+                            color="rgba(236, 72, 153, 0.5)",  # Cosmic magenta synapse filament
+                            curvature=0.28,
+                            particles=2,
+                        )
+                    )
+
+    earliest_date = min(all_dates) if all_dates else None
+    latest_date = max(all_dates) if all_dates else None
+
+    return KnowledgeGraphResponse(
+        nodes=nodes,
+        links=links,
+        total_nodes=len(nodes),
+        total_roadmaps=len(roadmaps),
+        total_chapters=total_chapters,
+        total_topics=total_topics,
+        total_solid=total_solid,
+        total_learning=total_learning,
+        total_not_started=total_not_started,
+        earliest_date=earliest_date,
+        latest_date=latest_date,
     )

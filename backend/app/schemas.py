@@ -275,3 +275,61 @@ class ActivityStatsResponse(BaseModel):
     history: list[DailyActivity] = Field(
         description="Activity history by day for heatmap"
     )
+
+
+# --- 3D Knowledge Universe Graph Schemas ---
+class GraphNode(BaseModel):
+    id: str = Field(description="Unique graph node ID (e.g. 'topic-<uuid>')")
+    raw_id: str = Field(description="Raw database entity UUID string")
+    label: str = Field(description="Display label / title")
+    type: Literal["roadmap", "chapter", "topic"] = Field(
+        description="Node entity type"
+    )
+    status: str | None = Field(
+        default=None,
+        description="Topic status ('not_started' | 'learning' | 'solid') or None",
+    )
+    roadmap_id: str | None = None
+    roadmap_title: str | None = None
+    chapter_id: str | None = None
+    chapter_title: str | None = None
+    val: float = Field(
+        description="Relative visual radius / mass for force physics rendering"
+    )
+    message_count: int = Field(
+        default=0, description="Total tutor chat messages inside this topic"
+    )
+    growth_level: int = Field(
+        default=0,
+        description="Cosmic growth stage (0: dormant, 1: active learning, 2: mastered supernova, 3: galaxy core)",
+    )
+    color: str = Field(description="Hex or CSS color code")
+    created_at: str = Field(description="ISO 8601 creation timestamp")
+    summary: str | None = Field(default=None, description="Topic summary if available")
+
+
+class GraphLink(BaseModel):
+    source: str = Field(description="Source node ID")
+    target: str = Field(description="Target node ID")
+    type: Literal["structural", "sequential", "synapse"] = Field(
+        description="Link connection type"
+    )
+    color: str | None = Field(default=None, description="CSS link color")
+    curvature: float = Field(default=0.0, description="Curvature in 3D space")
+    particles: int = Field(
+        default=0, description="Number of animated glowing particles traveling on link"
+    )
+
+
+class KnowledgeGraphResponse(BaseModel):
+    nodes: list[GraphNode]
+    links: list[GraphLink]
+    total_nodes: int
+    total_roadmaps: int
+    total_chapters: int
+    total_topics: int
+    total_solid: int
+    total_learning: int
+    total_not_started: int
+    earliest_date: str | None = None
+    latest_date: str | None = None

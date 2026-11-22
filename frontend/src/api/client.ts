@@ -17,6 +17,7 @@ import type {
   TopicUpdate,
   TopicVideosResponse,
   YouTubeSearchResponse,
+  KnowledgeGraphResponse,
 } from './types'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -131,6 +132,8 @@ export const api = {
     request<YouTubeSearchResponse>(`/api/youtube/search?query=${encodeURIComponent(query)}`),
   getActivityStats: (days = 364) =>
     request<ActivityStatsResponse>(`/api/activity?days=${days}`),
+  getKnowledgeGraph: () =>
+    request<KnowledgeGraphResponse>('/api/knowledge-graph'),
 }
 
 

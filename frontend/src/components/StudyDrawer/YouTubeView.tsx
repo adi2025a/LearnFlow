@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import type { Topic, YouTubeRecommendation } from '../../api/types'
-import { api } from '../../api/client'
+import type { Topic } from '../../api/types'
 
 interface YouTubeViewProps {
   topic: Topic
@@ -13,18 +11,18 @@ function parseYouTubeInput(input: string): { type: 'video'; videoId: string } | 
   const trimmed = input.trim()
   if (!trimmed) return { type: 'search', query: '' }
 
-  // Check for 11-char video ID directly
+  // 11-char direct video ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
     return { type: 'video', videoId: trimmed }
   }
 
-  // Check for YouTube URLs (youtube.com/watch?v=..., youtu.be/..., youtube.com/embed/...)
+  // YouTube URLs (watch?v=, embed/, youtu.be/, shorts/)
   const match = /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/.exec(trimmed)
   if (match) {
     return { type: 'video', videoId: match[1] }
   }
 
-  // Otherwise, treat as search query
+  // Otherwise, search query
   return { type: 'search', query: trimmed }
 }
 
@@ -33,51 +31,37 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
   chapterTitle,
   roadmapTitle,
 }) => {
-  const defaultQuery = useMemo(() => {
-    const parts = [roadmapTitle, chapterTitle, topic.title, 'tutorial'].filter(Boolean)
-    return parts.join(' ')
-  }, [roadmapTitle, chapterTitle, topic.title])
+  // Compute default search based on current topic
+  const defaultTopicQuery = useMemo(() => {
+    return topic.title.trim()
+  }, [topic.title])
 
+  const [searchQuery, setSearchQuery] = useState(defaultTopicQuery)
   const [activePlayerTarget, setActivePlayerTarget] = useState<{
     type: 'video' | 'search'
     value: string
-    title: string
+    label: string
   }>({
     type: 'search',
-    value: `${topic.title} tutorial`,
-    title: `${topic.title} Tutorial`,
+    value: defaultTopicQuery,
+    label: defaultTopicQuery,
   })
 
-  const [inputVal, setInputVal] = useState('')
-
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery({
-    queryKey: ['topic-videos', topic.id],
-    queryFn: () => api.getTopicVideos(topic.id),
-    staleTime: 1000 * 60 * 30, // 30 mins
-  })
-
-  // Handle user submitting search or pasting URL
-  const handleLoadTarget = (rawInput: string, title?: string) => {
+  const handleApplySearch = (rawInput: string, customLabel?: string) => {
     const parsed = parseYouTubeInput(rawInput)
     if (parsed.type === 'video') {
       setActivePlayerTarget({
         type: 'video',
         value: parsed.videoId,
-        title: title || `YouTube Video (${parsed.videoId})`,
+        label: customLabel || `Video (${parsed.videoId})`,
       })
     } else {
-      const q = parsed.query || defaultQuery
+      const q = parsed.query || defaultTopicQuery
+      setSearchQuery(q)
       setActivePlayerTarget({
         type: 'search',
         value: q,
-        title: title || q,
+        label: customLabel || q,
       })
     }
   }
@@ -92,26 +76,36 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  // Construct iframe source
+  // Build the live iframe source URL
   const iframeSrc = activePlayerTarget.type === 'video'
     ? `https://www.youtube-nocookie.com/embed/${activePlayerTarget.value}?autoplay=1&rel=0`
     : `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(activePlayerTarget.value)}&rel=0`
 
+  // Quick search variant chips
+  const quickSearchFilters = useMemo(() => {
+    const title = topic.title.trim()
+    return [
+      { label: 'Exact Topic', query: title },
+      { label: 'Tutorial', query: `${title} tutorial` },
+      { label: 'Visual Guide', query: `${title} visual animation` },
+      ...(chapterTitle ? [{ label: 'Chapter Context', query: `${chapterTitle} ${title}` }] : []),
+      ...(roadmapTitle ? [{ label: 'Full Course', query: `${roadmapTitle} ${title} course` }] : []),
+    ]
+  }, [topic.title, chapterTitle, roadmapTitle])
+
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-3.5 space-y-3.5 bg-[#0c0c0e]">
+    <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4 bg-[#0c0c0e]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5 shrink-0">
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-950/60 border border-red-800/40 text-xs text-red-400">
             ▶
           </span>
           <div>
             <h3 className="text-xs font-semibold text-zinc-100 uppercase tracking-wider font-mono">
-              YouTube Player
+              YouTube Search
             </h3>
-            <p className="text-[10px] text-zinc-400 font-mono truncate max-w-[200px]">
-              {topic.title}
-            </p>
+            <p className="text-[10px] text-zinc-400 font-mono">Direct YouTube video player</p>
           </div>
         </div>
 
@@ -119,176 +113,119 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
           type="button"
           onClick={handleOpenExternal}
           className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 px-2 py-1 text-[10px] font-mono text-zinc-300 hover:text-white transition-colors"
-          title="Open in full YouTube tab"
+          title="Open results directly on YouTube.com"
         >
-          <span>Open</span>
+          <span>YouTube</span>
           <span>↗</span>
         </button>
       </div>
 
-      {/* Hero Small YouTube iFrame Player */}
-      <div className="rounded-2xl border border-zinc-800 bg-black overflow-hidden shadow-2xl shrink-0">
-        <div className="relative w-full aspect-video bg-zinc-950">
-          <iframe
-            key={iframeSrc}
-            src={iframeSrc}
-            title={activePlayerTarget.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            className="absolute inset-0 w-full h-full border-0"
-          />
-        </div>
-
-        {/* Player Info Bar */}
-        <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-950/80 border-t border-zinc-900 text-[10px] font-mono text-zinc-400">
-          <span className="truncate pr-2 text-zinc-300">
-            {activePlayerTarget.title}
-          </span>
-          <span className="shrink-0 text-zinc-500">
-            {activePlayerTarget.type === 'video' ? 'Direct Video' : 'Search Playlist'}
-          </span>
-        </div>
-      </div>
-
-      {/* Search / Paste URL Input Bar */}
+      {/* Search Bar */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          if (inputVal.trim()) {
-            handleLoadTarget(inputVal.trim())
-            setInputVal('')
+          if (searchQuery.trim()) {
+            handleApplySearch(searchQuery.trim())
           }
         }}
         className="relative flex items-center shrink-0"
       >
         <input
           type="text"
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search YouTube or paste URL..."
-          className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none transition-colors pr-14"
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none transition-colors pr-16"
         />
-        <button
-          type="submit"
-          disabled={!inputVal.trim()}
-          className="absolute right-1 rounded-lg bg-white px-2 py-1 text-[10px] font-semibold text-zinc-950 hover:bg-zinc-200 disabled:opacity-30 disabled:hover:bg-white transition-colors"
-        >
-          Play
-        </button>
-      </form>
-
-      {/* Quick Search Chips */}
-      <div className="flex flex-wrap gap-1 shrink-0">
-        {[
-          `${topic.title} tutorial`,
-          `${topic.title} visual guide`,
-          `${topic.title} crash course`,
-        ].map((chip) => (
+        <div className="absolute right-1.5 flex items-center gap-1">
+          {searchQuery !== defaultTopicQuery && (
+            <button
+              type="button"
+              onClick={() => handleApplySearch(defaultTopicQuery)}
+              className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 px-1"
+              title="Reset to topic title"
+            >
+              Reset
+            </button>
+          )}
           <button
-            key={chip}
-            type="button"
-            onClick={() => handleLoadTarget(chip, chip)}
-            className="rounded-lg border border-zinc-800/80 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 px-2 py-0.5 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors"
+            type="submit"
+            className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-semibold text-zinc-950 hover:bg-zinc-200 transition-colors cursor-pointer"
           >
-            ▶ {chip}
-          </button>
-        ))}
-      </div>
-
-      {/* Curated Recommendations Section */}
-      <div className="pt-2 border-t border-zinc-800/80 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 font-mono">
-            Relatable Lessons
-          </span>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-40"
-          >
-            {isFetching ? '↻ Fetching...' : '↻ Refresh'}
+            Search
           </button>
         </div>
+      </form>
 
-        {isLoading && (
-          <div className="flex items-center justify-center py-6 text-center space-x-2">
-            <div className="h-4 w-4 rounded-full border-2 border-red-500 border-t-white animate-spin" />
-            <span className="text-[11px] font-mono text-zinc-500">Curating top lectures...</span>
+      {/* Quick Filter Chips */}
+      <div className="flex flex-wrap gap-1.5 shrink-0">
+        {quickSearchFilters.map((filter) => {
+          const isActive =
+            activePlayerTarget.type === 'search' &&
+            activePlayerTarget.value === filter.query
+
+          return (
+            <button
+              key={filter.label}
+              type="button"
+              onClick={() => handleApplySearch(filter.query, filter.label)}
+              className={`rounded-lg px-2.5 py-1 text-[10px] font-mono transition-all ${
+                isActive
+                  ? 'bg-red-500/20 border border-red-500/50 text-red-300 font-semibold shadow-xs'
+                  : 'border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              ▶ {filter.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Compact YouTube Player Canvas */}
+      <div className="rounded-2xl border border-zinc-800 bg-black overflow-hidden shadow-2xl shrink-0">
+        <div className="relative w-full aspect-video bg-zinc-950">
+          <iframe
+            key={iframeSrc}
+            src={iframeSrc}
+            title={activePlayerTarget.label}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full border-0"
+          />
+        </div>
+
+        {/* Player Status Bar */}
+        <div className="flex items-center justify-between px-3 py-2 bg-zinc-950/90 border-t border-zinc-900 text-[10px] font-mono">
+          <div className="flex items-center gap-1.5 truncate pr-2 text-zinc-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+            <span className="truncate">{activePlayerTarget.label}</span>
           </div>
-        )}
 
-        {isError && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-2.5 text-[11px] text-zinc-400">
-            {error instanceof Error ? error.message : 'Could not fetch suggestions.'}
-          </div>
-        )}
+          <span className="shrink-0 text-zinc-500">
+            {activePlayerTarget.type === 'video' ? 'Direct Video' : 'YouTube Live Playlist'}
+          </span>
+        </div>
+      </div>
 
-        {data && (
-          <div className="space-y-2">
-            {data.videos.map((v: YouTubeRecommendation, idx: number) => {
-              const isCurrent =
-                (v.video_id && activePlayerTarget.value === v.video_id) ||
-                activePlayerTarget.value === v.search_query
-
-              return (
-                <div
-                  key={idx}
-                  className={`rounded-xl border p-2.5 transition-all space-y-1.5 ${
-                    isCurrent
-                      ? 'border-red-500/50 bg-red-950/20'
-                      : 'border-zinc-800/80 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-1.5">
-                    <h4 className="text-xs font-semibold text-zinc-200 leading-snug line-clamp-2">
-                      {v.title}
-                    </h4>
-                    <span className="shrink-0 rounded bg-zinc-800 border border-zinc-700/60 px-1.5 py-0.5 text-[9px] font-mono text-zinc-300">
-                      {v.channel_or_creator}
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-zinc-400 leading-relaxed line-clamp-2">
-                    {v.why_recommended}
-                  </p>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleLoadTarget(
-                          v.video_id || v.search_query,
-                          v.title
-                        )
-                      }
-                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                        isCurrent
-                          ? 'bg-red-500/30 text-red-200 border border-red-500/40'
-                          : 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700 border border-zinc-700/60'
-                      }`}
-                    >
-                      <span>{isCurrent ? '● Now Playing' : '▶ Play Here'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const targetUrl = v.video_id
-                          ? `https://www.youtube.com/watch?v=${v.video_id}`
-                          : `https://www.youtube.com/results?search_query=${encodeURIComponent(v.search_query)}`
-                        window.open(targetUrl, '_blank', 'noopener,noreferrer')
-                      }}
-                      className="text-[10px] font-mono text-zinc-500 hover:text-white transition-colors"
-                    >
-                      YouTube ↗
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+      {/* Helpful Controls & Instructions Box */}
+      <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/30 p-3 space-y-2 text-xs text-zinc-400 shrink-0">
+        <div className="flex items-center gap-2 text-zinc-300 font-medium">
+          <span className="text-sm">💡</span>
+          <span>Browsing Search Results</span>
+        </div>
+        <p className="text-[11px] leading-relaxed text-zinc-400">
+          This player directly queries YouTube for <strong className="text-zinc-200">{topic.title}</strong>. Click the <span className="text-zinc-200 font-mono">playlist icon</span> inside the top-right of the player to browse and switch between all videos returned by YouTube.
+        </p>
+        <div className="pt-1 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleOpenExternal}
+            className="text-[11px] text-red-400 hover:text-red-300 hover:underline font-mono"
+          >
+            Open in Full YouTube Tab →
+          </button>
+          <span className="text-[10px] text-zinc-500 font-mono">Zero AI • 100% Native</span>
+        </div>
       </div>
     </div>
   )

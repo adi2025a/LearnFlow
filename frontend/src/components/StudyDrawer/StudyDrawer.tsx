@@ -127,6 +127,7 @@ export const StudyDrawer: React.FC<StudyDrawerProps> = ({
             )}
             {activeTab === 'youtube' && (
               <YouTubeView
+                key={topic.id}
                 topic={topic}
                 chapterTitle={chapterTitle}
                 roadmapTitle={roadmapTitle}

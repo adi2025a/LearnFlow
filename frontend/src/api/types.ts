@@ -170,8 +170,22 @@ export interface YouTubeSearchResponse {
   results: YouTubeVideoItem[]
 }
 
+// --- Activity & Streak Tracker Types ---
+export interface DailyActivity {
+  date: string
+  count: number
+  messages_count: number
+  topics_completed: number
+}
 
-
+export interface ActivityStatsResponse {
+  current_streak: number
+  longest_streak: number
+  total_active_days: number
+  total_messages: number
+  total_topics_solid: number
+  history: DailyActivity[]
+}
 
 export interface SSEErrorEvent {
   error: string

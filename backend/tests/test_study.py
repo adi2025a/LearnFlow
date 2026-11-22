@@ -160,3 +160,18 @@ async def test_youtube_direct_search(client: AsyncClient):
     assert first["id"] == "TnoW2ZrzUWI"
     assert "System Design" in first["title"]
     assert first["channel"] == "Cloud X Berry"
+
+
+@pytest.mark.asyncio
+async def test_activity_stats(client: AsyncClient):
+    # Fetch initial activity stats
+    res = await client.get("/api/activity?days=30")
+    assert res.status_code == 200
+    data = res.json()
+    assert "current_streak" in data
+    assert "longest_streak" in data
+    assert "total_active_days" in data
+    assert "total_messages" in data
+    assert "total_topics_solid" in data
+    assert len(data["history"]) == 30
+    assert data["history"][-1]["date"] is not None

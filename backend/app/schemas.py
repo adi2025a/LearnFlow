@@ -248,3 +248,30 @@ class YouTubeSearchResult(BaseModel):
 class YouTubeSearchResponse(BaseModel):
     query: str
     results: list[YouTubeSearchResult]
+
+
+# --- Activity & Streak Schemas ---
+class DailyActivity(BaseModel):
+    date: str = Field(description="Date in YYYY-MM-DD format")
+    count: int = Field(
+        description="Total count of study activities (messages + topics completed)"
+    )
+    messages_count: int = Field(
+        default=0, description="Count of chat messages on this day"
+    )
+    topics_completed: int = Field(
+        default=0, description="Count of topics marked solid on this day"
+    )
+
+
+class ActivityStatsResponse(BaseModel):
+    current_streak: int = Field(description="Current consecutive active days")
+    longest_streak: int = Field(description="Longest consecutive active days")
+    total_active_days: int = Field(description="Total distinct days with activity")
+    total_messages: int = Field(
+        description="Total messages exchanged across all topics"
+    )
+    total_topics_solid: int = Field(description="Total topics mastered ('solid')")
+    history: list[DailyActivity] = Field(
+        description="Activity history by day for heatmap"
+    )

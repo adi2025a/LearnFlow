@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
 import type { RoadmapTree, Topic } from '../api/types'
 import { api } from '../api/client'
+import { LearningHeatmap } from '../components/Dashboard/LearningHeatmap'
 
 interface RoadmapsPageProps {
   currentRoadmap: RoadmapTree | null
@@ -174,6 +175,9 @@ export const RoadmapsPage: React.FC<RoadmapsPageProps> = ({
             </button>
           </div>
         </div>
+
+        {/* GitHub-Style Study Streak & Daily Activity Heatmap */}
+        <LearningHeatmap />
 
         {/* Roadmap Cards Grid */}
         <div className="grid gap-5 md:grid-cols-2">

@@ -324,19 +324,21 @@ export const StudyDrawer: React.FC<StudyDrawerProps> = ({
             <DiagramView code={diagramCode} onClear={onClearDiagram} />
           )}
 
-          {/* Persistent YouTube Component across inline drawer and floating mini-player */}
-          <div className={activeTab === 'youtube' && isOpen ? 'h-full' : 'contents pointer-events-auto'}>
-            <YouTubeView
-              key={topic.id}
-              topic={topic}
-              chapterTitle={chapterTitle}
-              roadmapTitle={roadmapTitle}
-              isFloatingMini={isFloatingMini}
-              shouldShowMini={shouldShowMini}
-              onExpandToDrawer={handleExpandMiniPlayer}
-              onDismissMiniPlayer={handleDismissMiniPlayer}
-            />
-          </div>
+          {/* Persistent YouTube Component: only mounted once user actually opens Videos */}
+          {hasOpenedYouTube && (
+            <div className={activeTab === 'youtube' && isOpen ? 'h-full' : 'contents pointer-events-auto'}>
+              <YouTubeView
+                key={topic.id}
+                topic={topic}
+                chapterTitle={chapterTitle}
+                roadmapTitle={roadmapTitle}
+                isFloatingMini={isFloatingMini}
+                shouldShowMini={shouldShowMini}
+                onExpandToDrawer={handleExpandMiniPlayer}
+                onDismissMiniPlayer={handleDismissMiniPlayer}
+              />
+            </div>
+          )}
         </div>
       </aside>
 

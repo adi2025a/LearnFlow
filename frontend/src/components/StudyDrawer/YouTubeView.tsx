@@ -37,6 +37,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
   const [searchQuery, setSearchQuery] = useState(defaultTopicQuery)
   const [inputVal, setInputVal] = useState(defaultTopicQuery)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
+  const [autoPlay, setAutoPlay] = useState(0)
 
   // Direct YouTube Search via backend proxy (Zero LLM, 100% Real YouTube results)
   const {
@@ -185,7 +186,7 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
           {activeVideo ? (
             <iframe
               key={activeVideo.id}
-              src={`https://www.youtube-nocookie.com/embed/${activeVideo.id}?autoplay=1&rel=0`}
+              src={`https://www.youtube-nocookie.com/embed/${activeVideo.id}?autoplay=${autoPlay}&rel=0`}
               title={activeVideo.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
@@ -363,7 +364,10 @@ export const YouTubeView: React.FC<YouTubeViewProps> = ({
               return (
                 <div
                   key={video.id}
-                  onClick={() => setSelectedVideoId(video.id)}
+                  onClick={() => {
+                    setSelectedVideoId(video.id)
+                    setAutoPlay(1)
+                  }}
                   className={`group rounded-xl border p-2 flex items-center gap-2.5 transition-all cursor-pointer ${
                     isSelected
                       ? 'border-red-500/60 bg-red-950/20 ring-1 ring-red-500/30'
